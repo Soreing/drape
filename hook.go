@@ -1,4 +1,4 @@
-package drape
+package ssql
 
 import (
 	"context"

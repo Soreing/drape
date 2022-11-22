@@ -1,4 +1,4 @@
-module github.com/Soreing/drape
+module github.com/Soreing/ssql
 
 go 1.18
 
