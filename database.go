@@ -8,28 +8,17 @@ import (
 	"github.com/Soreing/easyscan"
 )
 
-type DB struct {
-	db         *sql.DB
-	afterQuery QueryHook
+type Db struct {
+	db    *sql.DB
+	hooks []QueryHook
 }
 
-// Connects to the database with no hook.
+// Opens a connection to the database and ensures that it is alive.
 func Connect(
 	ctx context.Context,
 	driver string,
 	dsn string,
-) (*DB, error) {
-	return ConnectWithHook(ctx, driver, dsn, nil)
-}
-
-// Opens a connection to the database and ensures that it is alive.
-// Attaches a hook that is called after queries are executed.
-func ConnectWithHook(
-	ctx context.Context,
-	driver string,
-	dsn string,
-	afterQuery QueryHook,
-) (*DB, error) {
+) (DB, error) {
 	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		return nil, err
@@ -37,16 +26,16 @@ func ConnectWithHook(
 	if err = db.Ping(); err != nil {
 		return nil, err
 	}
-	return &DB{
-		db:         db,
-		afterQuery: afterQuery,
+	return &Db{
+		db:    db,
+		hooks: []QueryHook{},
 	}, nil
 }
 
 // Gets a single record from the database with query string and params.
-// AfterQuery hook is called after the query is returned. The row is scanned
+// Hooks are called after the query is returned. The row is scanned
 // into an object that implements the ScanRow function.
-func (db *DB) Get(
+func (db *Db) Get(
 	ctx context.Context,
 	dest easyscan.ScanOne,
 	query string,
@@ -54,12 +43,13 @@ func (db *DB) Get(
 ) (err error) {
 	qd := QueryDetails{
 		StartTime: time.Now(),
+		Function:  "Get",
 		Query:     query,
 		Params:    params,
 	}
 	defer func() {
-		if db.afterQuery != nil {
-			db.afterQuery(ctx, qd, err)
+		for _, hk := range db.hooks {
+			hk(ctx, qd, err)
 		}
 	}()
 
@@ -78,9 +68,9 @@ func (db *DB) Get(
 }
 
 // Selects multiple records from the database with query string and params.
-// AfterQuery hook is called after the query is returned. The rows are scanned
+// Hooks are called after the query is returned. The rows are scanned
 // into an object that implements the ScanAppendRow function.
-func (db *DB) Select(
+func (db *Db) Select(
 	ctx context.Context,
 	dest easyscan.ScanMany,
 	query string,
@@ -88,12 +78,13 @@ func (db *DB) Select(
 ) (err error) {
 	qd := QueryDetails{
 		StartTime: time.Now(),
+		Function:  "Select",
 		Query:     query,
 		Params:    params,
 	}
 	defer func() {
-		if db.afterQuery != nil {
-			db.afterQuery(ctx, qd, err)
+		for _, hk := range db.hooks {
+			hk(ctx, qd, err)
 		}
 	}()
 
@@ -112,21 +103,22 @@ func (db *DB) Select(
 	return
 }
 
-// Executes a query in the database with parameters. AfterQuery hook is called
-// after the query is returned.
-func (db *DB) Exec(
+// Executes a query in the database with parameters.
+// Hooks are called after the query is returned.
+func (db *Db) Exec(
 	ctx context.Context,
 	query string,
 	params ...interface{},
 ) (res sql.Result, err error) {
 	qd := QueryDetails{
 		StartTime: time.Now(),
+		Function:  "Exec",
 		Query:     query,
 		Params:    params,
 	}
 	defer func() {
-		if db.afterQuery != nil {
-			db.afterQuery(ctx, qd, err)
+		for _, hk := range db.hooks {
+			hk(ctx, qd, err)
 		}
 	}()
 
@@ -134,8 +126,8 @@ func (db *DB) Exec(
 	return
 }
 
-// Begins a transaction with default options
-func (db *DB) Begin(
+// Begins a transaction with default options.
+func (db *Db) Begin(
 	ctx context.Context,
 ) (*Tx, error) {
 	tx, err := db.db.BeginTx(ctx, nil)
@@ -144,13 +136,13 @@ func (db *DB) Begin(
 	}
 
 	return &Tx{
-		tx:         tx,
-		afterQuery: db.afterQuery,
+		db: db,
+		tx: tx,
 	}, nil
 }
 
-// Begins a transaction with custom options
-func (db *DB) Beginx(
+// Begins a transaction with custom options.
+func (db *Db) Beginx(
 	ctx context.Context,
 	opt *sql.TxOptions,
 ) (*Tx, error) {
@@ -160,8 +152,16 @@ func (db *DB) Beginx(
 	}
 
 	return &Tx{
-		tx:         tx,
-		afterQuery: db.afterQuery,
+		db: db,
+		tx: tx,
 	}, nil
 }
 
+// Adds a hook that is eecuted after the query is returned.
+// Hooks are propagated to transactions started by the db context.
+// The hook can not be removed.
+func (db *Db) UseHook(
+	fn func(context.Context, QueryDetails, error),
+) {
+	db.hooks = append(db.hooks, fn)
+}

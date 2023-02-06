@@ -9,12 +9,12 @@ import (
 )
 
 type Tx struct {
-	tx         *sql.Tx
-	afterQuery QueryHook
+	db *Db
+	tx *sql.Tx
 }
 
 // Gets a single record from the database with query string and params.
-// AfterQuery hook is called after the query is returned. The row is scanned
+// Hooks are called after the query is returned. The row is scanned
 // into an object that implements the ScanRow function.
 func (tx *Tx) Get(
 	ctx context.Context,
@@ -24,12 +24,13 @@ func (tx *Tx) Get(
 ) (err error) {
 	qd := QueryDetails{
 		StartTime: time.Now(),
+		Function:  "Get",
 		Query:     query,
 		Params:    params,
 	}
 	defer func() {
-		if tx.afterQuery != nil {
-			tx.afterQuery(ctx, qd, err)
+		for _, hk := range tx.db.hooks {
+			hk(ctx, qd, err)
 		}
 	}()
 
@@ -48,7 +49,7 @@ func (tx *Tx) Get(
 }
 
 // Selects multiple records from the database with query string and params.
-// AfterQuery hook is called after the query is returned. The rows are scanned
+// Hooks are called after the query is returned. The rows are scanned
 // into an object that implements the ScanAppendRow function.
 func (tx *Tx) Select(
 	ctx context.Context,
@@ -58,12 +59,13 @@ func (tx *Tx) Select(
 ) (err error) {
 	qd := QueryDetails{
 		StartTime: time.Now(),
+		Function:  "Select",
 		Query:     query,
 		Params:    params,
 	}
 	defer func() {
-		if tx.afterQuery != nil {
-			tx.afterQuery(ctx, qd, err)
+		for _, hk := range tx.db.hooks {
+			hk(ctx, qd, err)
 		}
 	}()
 
@@ -82,8 +84,8 @@ func (tx *Tx) Select(
 	return
 }
 
-// Executes a query in the database with parameters. AfterQuery hook is called
-// after the query is returned.
+// Executes a query in the database with parameters.
+// Hooks are called after the query is returned.
 func (tx *Tx) Exec(
 	ctx context.Context,
 	query string,
@@ -91,12 +93,13 @@ func (tx *Tx) Exec(
 ) (res sql.Result, err error) {
 	qd := QueryDetails{
 		StartTime: time.Now(),
+		Function:  "Exec",
 		Query:     query,
 		Params:    params,
 	}
 	defer func() {
-		if tx.afterQuery != nil {
-			tx.afterQuery(ctx, qd, err)
+		for _, hk := range tx.db.hooks {
+			hk(ctx, qd, err)
 		}
 	}()
 
@@ -104,7 +107,7 @@ func (tx *Tx) Exec(
 	return
 }
 
-// Commits the transaction
+// Commits the transaction.
 func (tx *Tx) Commit(
 	ctx context.Context,
 ) error {
@@ -115,7 +118,7 @@ func (tx *Tx) Commit(
 	return nil
 }
 
-// Rolls back the transaction
+// Rolls back the transaction.
 func (tx *Tx) Rollback(
 	ctx context.Context,
 ) error {
@@ -125,4 +128,3 @@ func (tx *Tx) Rollback(
 	}
 	return nil
 }
-
