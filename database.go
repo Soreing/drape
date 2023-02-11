@@ -41,7 +41,7 @@ func (db *Db) Get(
 	query string,
 	params ...interface{},
 ) (err error) {
-	qd := QueryDetails{
+	qd := QueryContext{
 		StartTime: time.Now(),
 		Function:  "Get",
 		Query:     query,
@@ -76,7 +76,7 @@ func (db *Db) Select(
 	query string,
 	params ...interface{},
 ) (err error) {
-	qd := QueryDetails{
+	qd := QueryContext{
 		StartTime: time.Now(),
 		Function:  "Select",
 		Query:     query,
@@ -110,7 +110,7 @@ func (db *Db) Exec(
 	query string,
 	params ...interface{},
 ) (res sql.Result, err error) {
-	qd := QueryDetails{
+	qd := QueryContext{
 		StartTime: time.Now(),
 		Function:  "Exec",
 		Query:     query,
@@ -129,7 +129,7 @@ func (db *Db) Exec(
 // Begins a transaction with default options.
 func (db *Db) Begin(
 	ctx context.Context,
-) (*Tx, error) {
+) (TX, error) {
 	tx, err := db.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (db *Db) Begin(
 func (db *Db) Beginx(
 	ctx context.Context,
 	opt *sql.TxOptions,
-) (*Tx, error) {
+) (TX, error) {
 	tx, err := db.db.BeginTx(ctx, opt)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (db *Db) Beginx(
 // Hooks are propagated to transactions started by the db context.
 // The hook can not be removed.
 func (db *Db) UseHook(
-	fn func(context.Context, QueryDetails, error),
+	fn func(context.Context, QueryContext, error),
 ) {
 	db.hooks = append(db.hooks, fn)
 }

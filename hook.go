@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-type QueryHook func(context.Context, QueryDetails, error)
+type QueryHook func(context.Context, QueryContext, error)
 
-type QueryDetails struct {
+type QueryContext struct {
 	StartTime time.Time     // start time of the query
 	Function  string        // function called
 	Query     string        // query string

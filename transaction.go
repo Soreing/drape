@@ -22,7 +22,7 @@ func (tx *Tx) Get(
 	query string,
 	params ...interface{},
 ) (err error) {
-	qd := QueryDetails{
+	qd := QueryContext{
 		StartTime: time.Now(),
 		Function:  "Get",
 		Query:     query,
@@ -57,7 +57,7 @@ func (tx *Tx) Select(
 	query string,
 	params ...interface{},
 ) (err error) {
-	qd := QueryDetails{
+	qd := QueryContext{
 		StartTime: time.Now(),
 		Function:  "Select",
 		Query:     query,
@@ -91,7 +91,7 @@ func (tx *Tx) Exec(
 	query string,
 	params ...interface{},
 ) (res sql.Result, err error) {
-	qd := QueryDetails{
+	qd := QueryContext{
 		StartTime: time.Now(),
 		Function:  "Exec",
 		Query:     query,

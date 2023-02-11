@@ -27,13 +27,13 @@ type DB interface {
 	) (res sql.Result, err error)
 	Begin(
 		ctx context.Context,
-	) (*Tx, error)
+	) (TX, error)
 	Beginx(
 		ctx context.Context,
 		opt *sql.TxOptions,
-	) (*Tx, error)
+	) (TX, error)
 	UseHook(
-		fn func(context.Context, QueryDetails, error),
+		fn func(context.Context, QueryContext, error),
 	)
 }
 
